@@ -34,45 +34,34 @@ class DStarLite:
             start: Starting position (x, y) - where the robot is
             goal: Goal position (x, y) - where we want to go
         """
-        self.grid = [row[:] for row in grid]  # Copy grid
+        self.grid = [row[:] for row in grid] 
         self.rows = len(grid)
         self.cols = len(grid[0])
 
-        self.start = start  # Current robot position
+        self.start = start
         self.goal = goal
 
-        # D* Lite specific data structures
-        # g(s): estimate of distance from s to goal
-        # rhs(s): one-step lookahead value (minimum of g(predecessor) + cost)
         self.g: Dict[Tuple[int, int], float] = {}
         self.rhs: Dict[Tuple[int, int], float] = {}
 
-        # Priority queue with (key, node) pairs
-        # Key is a tuple (k1, k2) for lexicographic ordering
         self.open_list: List[Tuple[Tuple[float, float], Tuple[int, int]]] = []
         self.open_set: Set[Tuple[int, int]] = set()
 
-        # km: key modifier - accumulates as robot moves (handles changing start)
         self.km = 0.0
 
-        # Initialize all nodes
         self._initialize()
 
     def _initialize(self):
         """Initialize the algorithm (corresponds to Initialize() in paper)"""
-        # Set g and rhs to infinity for all nodes
         for i in range(self.rows):
             for j in range(self.cols):
                 self.g[(i, j)] = float('inf')
                 self.rhs[(i, j)] = float('inf')
 
-        # Goal has rhs = 0 (we search backwards from goal)
         self.rhs[self.goal] = 0
 
-        # Reset key modifier
         self.km = 0.0
 
-        # Clear and initialize open list with goal
         self.open_list = []
         self.open_set = set()
         self._insert(self.goal)
@@ -119,7 +108,6 @@ class DStarLite:
 
     def _top_key(self) -> Tuple[float, float]:
         """Get the minimum key from open list"""
-        # Clean up stale entries
         while self.open_list and self.open_list[0][1] not in self.open_set:
             heapq.heappop(self.open_list)
 
@@ -161,15 +149,13 @@ class DStarLite:
         Movement cost from s1 to s2.
         Returns infinity if either cell is an obstacle.
         """
-        # Check if either cell is an obstacle
         if self.grid[s1[0]][s1[1]] == 1 or self.grid[s2[0]][s2[1]] == 1:
             return float('inf')
 
-        # Diagonal vs straight movement cost
         dx = abs(s1[0] - s2[0])
         dy = abs(s1[1] - s2[1])
 
-        if dx + dy == 2:  # Diagonal
+        if dx + dy == 2: 
             return math.sqrt(2)
         return 1.0
 
@@ -183,7 +169,6 @@ class DStarLite:
         - Else: u is consistent, remove from open list
         """
         if u != self.goal:
-            # Calculate rhs as minimum over all successors
             min_rhs = float('inf')
             for s_prime in self.get_neighbors(u):
                 candidate = self.cost(u, s_prime) + self.g[s_prime]
@@ -191,10 +176,8 @@ class DStarLite:
                     min_rhs = candidate
             self.rhs[u] = min_rhs
 
-        # Remove from open list if present
         self._remove(u)
 
-        # If inconsistent (g != rhs), add to open list
         if self.g[u] != self.rhs[u]:
             self._insert(u)
 
@@ -206,18 +189,15 @@ class DStarLite:
         Returns True if path found, False otherwise.
         """
         iterations = 0
-        max_iterations = self.rows * self.cols * 2  # Safety limit
+        max_iterations = self.rows * self.cols * 2 
 
         while iterations < max_iterations:
-            # Check termination conditions
             top_key = self._top_key()
             start_key = self._calculate_key(self.start)
 
-            # Terminate if open list is empty or start is consistent with correct key
             if not self._key_less_than(top_key, start_key) and self.rhs[self.start] == self.g[self.start]:
                 break
 
-            # Get node with minimum key
             u = self._pop()
             if u is None:
                 break
@@ -226,25 +206,19 @@ class DStarLite:
             k_new = self._calculate_key(u)
 
             if self._key_less_than(k_old, k_new):
-                # Key has increased, re-insert with new key
                 self._insert(u)
             elif self.g[u] > self.rhs[u]:
-                # Overconsistent: make consistent
                 self.g[u] = self.rhs[u]
-                # Update all predecessors
                 for s in self.get_neighbors(u):
                     self._update_vertex(s)
             else:
-                # Underconsistent: make overconsistent then update
                 self.g[u] = float('inf')
-                # Update u and all predecessors
                 self._update_vertex(u)
                 for s in self.get_neighbors(u):
                     self._update_vertex(s)
 
             iterations += 1
 
-        # Check if path exists
         return self.g[self.start] != float('inf')
 
     def plan(self) -> List[Tuple[int, int]]:
@@ -267,11 +241,10 @@ class DStarLite:
         path = [self.start]
         current = self.start
 
-        max_steps = self.rows * self.cols  # Safety limit
+        max_steps = self.rows * self.cols
         steps = 0
 
         while current != self.goal and steps < max_steps:
-            # Find successor with minimum (cost + g)
             best_next = None
             best_cost = float('inf')
 
@@ -282,7 +255,7 @@ class DStarLite:
                     best_next = s_prime
 
             if best_next is None or best_cost == float('inf'):
-                return []  # No valid path
+                return []
 
             path.append(best_next)
             current = best_next
@@ -295,7 +268,6 @@ class DStarLite:
         Update robot position (when robot moves along path).
         Adjusts km to maintain correct key values.
         """
-        # km += h(s_last, s_start)
         self.km += self.heuristic(self.start, new_start)
         self.start = new_start
 
@@ -314,22 +286,17 @@ class DStarLite:
         if not changed_cells:
             return self.extract_path()
 
-        # Update grid and affected vertices
         for (x, y), new_val in changed_cells:
             old_val = self.grid[x][y]
             if old_val == new_val:
                 continue
 
-            # Update grid
             self.grid[x][y] = new_val
 
-            # Update all edges to/from this cell
-            # The cell itself and all its neighbors are affected
             self._update_vertex((x, y))
             for neighbor in self.get_neighbors((x, y)):
                 self._update_vertex(neighbor)
 
-        # Recompute shortest path (efficiently - only processes affected nodes)
         if self.compute_shortest_path():
             return self.extract_path()
         return []
@@ -344,7 +311,7 @@ class DStarLite:
         Returns: New path after replanning
         """
         changed = [((x, y), 1) for x, y in obstacles
-                   if self.grid[x][y] == 0]  # Only actually changed cells
+                   if self.grid[x][y] == 0]
         return self.update_obstacles(changed)
 
     def remove_obstacles(self, cells: List[Tuple[int, int]]) -> List[Tuple[int, int]]:
@@ -357,7 +324,7 @@ class DStarLite:
         Returns: New path after replanning
         """
         changed = [((x, y), 0) for x, y in cells
-                   if self.grid[x][y] == 1]  # Only actually changed cells
+                   if self.grid[x][y] == 1]
         return self.update_obstacles(changed)
 
     def create_random_obstacles(self, count: int = 6) -> List[Tuple[int, int]]:
@@ -386,12 +353,10 @@ def visualize_grid(grid: List[List[int]], path: List[Tuple[int, int]],
     """Visualize grid with path"""
     visual = [row[:] for row in grid]
 
-    # Mark path
     for x, y in path:
         if visual[x][y] == 0:
             visual[x][y] = 2
 
-    # Mark start and goal
     if start:
         visual[start[0]][start[1]] = 3
     if goal:
@@ -408,7 +373,6 @@ def visualize_grid(grid: List[List[int]], path: List[Tuple[int, int]],
 def main():
     """Demonstrate D* Lite algorithm"""
 
-    # Create a larger grid for better demonstration
     grid = [
         [0, 0, 0, 0, 0, 0, 0, 0],
         [0, 0, 0, 0, 0, 0, 0, 0],
@@ -427,10 +391,8 @@ def main():
     print("D* Lite Path Planning Demo")
     print("=" * 50)
 
-    # Create planner
     planner = DStarLite(grid, start, goal)
 
-    # Compute initial path
     print("\n1. Computing initial path...")
     path = planner.plan()
 
@@ -442,12 +404,10 @@ def main():
         print("   No path found!")
         return
 
-    # Simulate discovering obstacles
     print("\n2. Discovering new obstacles...")
     new_obstacles = planner.create_random_obstacles(8)
     print(f"   New obstacles at: {new_obstacles}")
 
-    # Replan with new obstacles - this is where D* Lite efficiency shows
     print("\n3. Replanning (D* Lite efficiently updates only affected nodes)...")
     new_path = planner.add_obstacles(new_obstacles)
 
@@ -459,7 +419,6 @@ def main():
         print("   No path exists with new obstacles!")
         visualize_grid(planner.grid, [], start, goal)
 
-    # Demonstrate obstacle removal
     if new_obstacles and new_path:
         print("\n4. Removing some obstacles...")
         to_remove = new_obstacles[:3]
@@ -471,11 +430,9 @@ def main():
             print(f"   Path after removal: {len(restored_path)} steps")
             visualize_grid(planner.grid, restored_path, start, goal)
 
-    # Demonstrate moving start position
     print("\n5. Simulating robot movement...")
     if new_path and len(new_path) > 2:
-        # Robot moves along path
-        new_start = new_path[2]  # Move to third position
+        new_start = new_path[2] 
         print(f"   Robot moved from {start} to {new_start}")
         planner.update_start(new_start)
 

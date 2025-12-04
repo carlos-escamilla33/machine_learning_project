@@ -11,13 +11,8 @@ import pandas as pd
 from typing import List, Tuple
 import sys
 
-# Import your implementations
 from d_star_algoirthm import DStarPathPlanner
 from d_star_lite import DStarLite
-
-# ============================================
-# BENCHMARK FUNCTIONS
-# ============================================
 
 
 def benchmark_algorithm(planner_class, grid, start, goal, iterations=10):
@@ -37,10 +32,8 @@ def benchmark_algorithm(planner_class, grid, start, goal, iterations=10):
     times = []
 
     for i in range(iterations):
-        # Create fresh planner instance
         planner = planner_class(grid, start, goal)
 
-        # Time the planning
         start_time = time.perf_counter()
         path = planner.plan()
         end_time = time.perf_counter()
@@ -77,10 +70,6 @@ def create_test_grid(size):
     """Create a test grid of given size"""
     return [[0 for _ in range(size)] for _ in range(size)]
 
-# ============================================
-# SINGLE COMPARISON
-# ============================================
-
 
 def compare_single_test(grid_size=10, iterations=10):
     """Compare both algorithms on a single grid size"""
@@ -90,27 +79,22 @@ def compare_single_test(grid_size=10, iterations=10):
     print(f"Iterations: {iterations}")
     print(f"{'='*70}\n")
 
-    # Create test environment
     grid = create_test_grid(grid_size)
     start = (0, grid_size - 1)
     goal = (grid_size - 1, 0)
 
-    # Benchmark D*
     print("Running D* (Original Implementation)...")
     d_star_stats = benchmark_algorithm(
         DStarPathPlanner, grid, start, goal, iterations)
 
-    # Benchmark D* Lite
     print("Running D* Lite...")
     d_lite_stats = benchmark_algorithm(
         DStarLite, grid, start, goal, iterations)
 
-    # Memory benchmarks
     print("\nMeasuring memory usage...")
     d_star_mem = benchmark_memory(DStarPathPlanner, grid, start, goal)
     d_lite_mem = benchmark_memory(DStarLite, grid, start, goal)
 
-    # Print results
     print(f"\n{'='*70}")
     print("RESULTS:")
     print(f"{'='*70}")
@@ -131,7 +115,6 @@ def compare_single_test(grid_size=10, iterations=10):
     print(f"  Max Time:     {d_lite_stats['max']*1000:.4f} ms")
     print(f"  Peak Memory:  {d_lite_mem['peak_mb']:.4f} MB")
 
-    # Calculate improvements
     speedup = d_star_stats['mean'] / d_lite_stats['mean']
     time_saved_pct = (
         (d_star_stats['mean'] - d_lite_stats['mean']) / d_star_stats['mean']) * 100
@@ -165,10 +148,6 @@ def compare_single_test(grid_size=10, iterations=10):
         'time_saved_pct': time_saved_pct
     }
 
-# ============================================
-# SCALABILITY TEST
-# ============================================
-
 
 def scalability_test(grid_sizes=[5, 10, 15, 20, 25], iterations=5):
     """Test both algorithms across different grid sizes"""
@@ -188,7 +167,6 @@ def scalability_test(grid_sizes=[5, 10, 15, 20, 25], iterations=5):
         start = (0, size - 1)
         goal = (size - 1, 0)
 
-        # Benchmark both
         print("  Running D*...")
         d_star_stats = benchmark_algorithm(
             DStarPathPlanner, grid, start, goal, iterations)
@@ -197,12 +175,10 @@ def scalability_test(grid_sizes=[5, 10, 15, 20, 25], iterations=5):
         d_lite_stats = benchmark_algorithm(
             DStarLite, grid, start, goal, iterations)
 
-        # Memory
         print("  Measuring memory...")
         d_star_mem = benchmark_memory(DStarPathPlanner, grid, start, goal)
         d_lite_mem = benchmark_memory(DStarLite, grid, start, goal)
 
-        # Calculate metrics
         speedup = d_star_stats['mean'] / d_lite_stats['mean']
         time_saved_pct = (
             (d_star_stats['mean'] - d_lite_stats['mean']) / d_star_stats['mean']) * 100
@@ -229,15 +205,9 @@ def scalability_test(grid_sizes=[5, 10, 15, 20, 25], iterations=5):
     df = pd.DataFrame(results)
     return df
 
-# ============================================
-# VISUALIZATION
-# ============================================
-
-
 def plot_results(df):
     """Create comparison visualizations"""
 
-    # Runtime comparison
     plt.figure(figsize=(12, 5))
 
     plt.subplot(1, 2, 1)
@@ -251,7 +221,6 @@ def plot_results(df):
     plt.legend(fontsize=11)
     plt.grid(True, alpha=0.3)
 
-    # Speedup
     plt.subplot(1, 2, 2)
     plt.plot(df['Grid Nodes'], df['Speedup'], 'g-o', linewidth=2, markersize=8)
     plt.axhline(y=1, color='r', linestyle='--',
@@ -267,7 +236,6 @@ def plot_results(df):
     print("\n✓ Graph saved as 'dstar_comparison.png'")
     plt.show()
 
-    # Memory comparison
     plt.figure(figsize=(10, 5))
     plt.plot(df['Grid Nodes'], df['D* Memory (MB)'],
              'b-s', label='D*', linewidth=2, markersize=8)
@@ -283,11 +251,6 @@ def plot_results(df):
     print("✓ Graph saved as 'memory_comparison.png'")
     plt.show()
 
-# ============================================
-# MAIN
-# ============================================
-
-
 if __name__ == "__main__":
     print("\n" + "="*70)
     print("D* vs D* Lite Performance Comparison")
@@ -297,24 +260,20 @@ if __name__ == "__main__":
     print("\n[1/2] Running single comparison test...")
     compare_single_test(grid_size=15, iterations=10)
 
-    # Full scalability test
     print("\n[2/2] Running scalability test...")
     df = scalability_test(
         grid_sizes=[5, 10, 15, 20, 25, 30],
         iterations=5
     )
 
-    # Display results table
     print(f"\n{'='*70}")
     print("SUMMARY TABLE:")
     print(f"{'='*70}\n")
     print(df.to_string(index=False))
 
-    # Save results
     df.to_csv('benchmark_results.csv', index=False)
     print(f"\n✓ Results saved to 'benchmark_results.csv'")
 
-    # Summary statistics
     print(f"\n{'='*70}")
     print("OVERALL STATISTICS:")
     print(f"{'='*70}")
@@ -325,7 +284,6 @@ if __name__ == "__main__":
     print(f"Avg Memory Saved:     {df['Memory Saved (%)'].mean():.1f}%")
     print(f"{'='*70}\n")
 
-    # Create visualizations
     print("Generating visualizations...")
     plot_results(df)
 
