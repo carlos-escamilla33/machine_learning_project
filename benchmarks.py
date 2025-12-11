@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Benchmark comparison: D* vs D* Lite
 Compares the two path planning algorithms for performance
@@ -6,13 +7,10 @@ Compares the two path planning algorithms for performance
 import time
 import statistics
 import tracemalloc
-import matplotlib.pyplot as plt
-import pandas as pd
-from typing import List, Tuple
-import sys
-
-from d_star_algoirthm import DStarPathPlanner
+# import pandas as pd
+from d_star_algoirthm import DStarPathPlanner 
 from d_star_lite import DStarLite
+from typing import List, Tuple
 
 
 def benchmark_algorithm(planner_class, grid, start, goal, iterations=10):
@@ -33,7 +31,8 @@ def benchmark_algorithm(planner_class, grid, start, goal, iterations=10):
 
     for i in range(iterations):
         planner = planner_class(grid, start, goal)
-
+        planner = DStarLite(grid, start, goal)
+        path = planner.plan()
         start_time = time.perf_counter()
         path = planner.plan()
         end_time = time.perf_counter()
@@ -115,45 +114,31 @@ def compare_single_test(grid_size=10, iterations=10):
     print(f"  Max Time:     {d_lite_stats['max']*1000:.4f} ms")
     print(f"  Peak Memory:  {d_lite_mem['peak_mb']:.4f} MB")
 
+    # Comparison
     speedup = d_star_stats['mean'] / d_lite_stats['mean']
-    time_saved_pct = (
-        (d_star_stats['mean'] - d_lite_stats['mean']) / d_star_stats['mean']) * 100
-    mem_saved_pct = (
-        (d_star_mem['peak_mb'] - d_lite_mem['peak_mb']) / d_star_mem['peak_mb']) * 100
+    time_improvement = (d_star_stats['mean'] - d_lite_stats['mean']) / d_star_stats['mean'] * 100
+    memory_saved = (d_star_mem['peak_mb'] - d_lite_mem['peak_mb']) / d_star_mem['peak_mb'] * 100
 
     print(f"\n{'='*70}")
     print("COMPARISON:")
     print(f"{'='*70}")
     print(f"  Speedup:           {speedup:.2f}x")
-    print(f"  Time Improvement:  {time_saved_pct:.2f}%")
-    print(
-        f"  Time Saved:        {(d_star_stats['mean'] - d_lite_stats['mean'])*1000:.4f} ms")
-    print(f"  Memory Saved:      {mem_saved_pct:.2f}%")
+    print(f"  Time Improvement:  {time_improvement:.2f}%")
+    print(f"  Time Saved:        {(d_star_stats['mean'] - d_lite_stats['mean'])*1000:.4f} ms")
+    print(f"  Memory Saved:      {memory_saved:.2f}%")
 
     if speedup > 1:
         print(f"\n✓ D* Lite is FASTER")
-    elif speedup < 1:
-        print(f"\n✗ D* (Original) is FASTER")
     else:
-        print(f"\n≈ Both algorithms have similar performance")
-
+        print(f"\n✗ D* (Original) is FASTER")
     print(f"{'='*70}\n")
 
-    return {
-        'd_star': d_star_stats,
-        'd_lite': d_lite_stats,
-        'd_star_mem': d_star_mem,
-        'd_lite_mem': d_lite_mem,
-        'speedup': speedup,
-        'time_saved_pct': time_saved_pct
-    }
 
-
-def scalability_test(grid_sizes=[5, 10, 15, 20, 25], iterations=5):
+def scalability_test(grid_sizes=[5, 10, 15, 20, 25, 30], iterations=5):
     """Test both algorithms across different grid sizes"""
 
     print(f"\n{'='*70}")
-    print(f"SCALABILITY TEST")
+    print("SCALABILITY TEST")
     print(f"Grid Sizes: {grid_sizes}")
     print(f"Iterations per size: {iterations}")
     print(f"{'='*70}\n")
@@ -162,7 +147,6 @@ def scalability_test(grid_sizes=[5, 10, 15, 20, 25], iterations=5):
 
     for size in grid_sizes:
         print(f"\nTesting grid size: {size}x{size}")
-
         grid = create_test_grid(size)
         start = (0, size - 1)
         goal = (size - 1, 0)
@@ -202,68 +186,22 @@ def scalability_test(grid_sizes=[5, 10, 15, 20, 25], iterations=5):
         print(
             f"  ✓ Speedup: {speedup:.2f}x, Time saved: {time_saved_pct:.1f}%")
 
-    df = pd.DataFrame(results)
+    # df = pd.DataFrame(results)
     return df
 
-def plot_results(df):
-    """Create comparison visualizations"""
-
-    plt.figure(figsize=(12, 5))
-
-    plt.subplot(1, 2, 1)
-    plt.plot(df['Grid Nodes'], df['D* Time (ms)'], 'b-o',
-             label='D* (Original)', linewidth=2, markersize=8)
-    plt.plot(df['Grid Nodes'], df['D* Lite Time (ms)'], 'r-o',
-             label='D* Lite', linewidth=2, markersize=8)
-    plt.xlabel('Grid Size (total nodes)', fontsize=12)
-    plt.ylabel('Runtime (ms)', fontsize=12)
-    plt.title('Runtime Comparison', fontsize=14, fontweight='bold')
-    plt.legend(fontsize=11)
-    plt.grid(True, alpha=0.3)
-
-    plt.subplot(1, 2, 2)
-    plt.plot(df['Grid Nodes'], df['Speedup'], 'g-o', linewidth=2, markersize=8)
-    plt.axhline(y=1, color='r', linestyle='--',
-                label='No improvement', alpha=0.5)
-    plt.xlabel('Grid Size (total nodes)', fontsize=12)
-    plt.ylabel('Speedup Factor', fontsize=12)
-    plt.title('D* Lite Speedup Over D*', fontsize=14, fontweight='bold')
-    plt.legend(fontsize=11)
-    plt.grid(True, alpha=0.3)
-
-    plt.tight_layout()
-    plt.savefig('dstar_comparison.png', dpi=300, bbox_inches='tight')
-    print("\n✓ Graph saved as 'dstar_comparison.png'")
-    plt.show()
-
-    plt.figure(figsize=(10, 5))
-    plt.plot(df['Grid Nodes'], df['D* Memory (MB)'],
-             'b-s', label='D*', linewidth=2, markersize=8)
-    plt.plot(df['Grid Nodes'], df['D* Lite Memory (MB)'],
-             'r-s', label='D* Lite', linewidth=2, markersize=8)
-    plt.xlabel('Grid Size (total nodes)', fontsize=12)
-    plt.ylabel('Peak Memory (MB)', fontsize=12)
-    plt.title('Memory Usage Comparison', fontsize=14, fontweight='bold')
-    plt.legend(fontsize=11)
-    plt.grid(True, alpha=0.3)
-    plt.tight_layout()
-    plt.savefig('memory_comparison.png', dpi=300, bbox_inches='tight')
-    print("✓ Graph saved as 'memory_comparison.png'")
-    plt.show()
 
 if __name__ == "__main__":
     print("\n" + "="*70)
     print("D* vs D* Lite Performance Comparison")
     print("="*70)
 
-    # Quick single test
     print("\n[1/2] Running single comparison test...")
     compare_single_test(grid_size=15, iterations=10)
 
     print("\n[2/2] Running scalability test...")
     df = scalability_test(
-        grid_sizes=[5, 10, 15, 20, 25, 30],
-        iterations=5
+       grid_sizes=[5, 10, 15, 20, 25, 30],
+            iterations=5
     )
 
     print(f"\n{'='*70}")
@@ -283,8 +221,5 @@ if __name__ == "__main__":
     print(f"Avg Time Saved:       {df['Time Saved (%)'].mean():.1f}%")
     print(f"Avg Memory Saved:     {df['Memory Saved (%)'].mean():.1f}%")
     print(f"{'='*70}\n")
-
-    print("Generating visualizations...")
-    plot_results(df)
 
     print("\n✓ Benchmark complete!")
